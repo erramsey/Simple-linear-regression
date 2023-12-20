@@ -1,0 +1,73 @@
+DATA CLASS;
+    SET sashelp.CLASS;
+ 
+*Generating descriptive statistics for dataset sashelp.CLASS;  
+*There are no unusual data points that might suggest an error in data entry;
+*The sample size of 19 is too small for the central limit theorem to apply;
+PROC CONTENTS DATA=CLASS;
+RUN;
+PROC MEANS DATA=CLASS; 
+RUN;
+*Separating the results for males and females suggests that weight differs for males and females;
+*There are an approximately equal number of males and females;
+PROC MEANS DATA=CLASS; 
+    BY sex;
+RUN;
+
+*Creating a side-by-side boxplot of weight for each level of sex;
+*The results suggest that weight differs significantly for males and females;
+PROC SORT data=CLASS;
+    BY sex;
+PROC BOXPLOT data=CLASS;
+    PLOT weight*sex;
+RUN; 
+
+*Generating scatter plots to examine potential interactions between weight and age, sorted by sex;
+*Data appears linear for both scatter plots;
+PROC SORT DATA=CLASS;
+    BY sex;
+RUN; 
+PROC GPLOT DATA=CLASS;
+    PLOT weight*age;
+    BY sex;
+RUN;
+
+*Conducting simple linear regressions with the dependent variable age for the independent variable weight, sorted by sex;
+*Results of male and female have significant p-values;
+*The residuals for females suggest the presence of one outlier. The histogram of residuals is not normally distributed, suggesting that the assumption of normality of error terms does not hold.;
+*The residuals for males suggest the presence of two minor outliers. The histogram of residuals is not normally distributed, 
+suggesting that the assumption of normality of error terms does not hold. The right end of the fit mean plot is taller than the left, suggesting there is unexplained variation in the model.;
+PROC REG DATA=CLASS;
+    MODEL weight = age / clb;  
+    BY sex;
+*The following code is used to calculate expected mean weight by age; 
+    OUTPUT out=temp
+        lclm=lower 
+        uclm=upper 
+        p=yhat;
+RUN;
+*Printing the estimated mean weight for a child aged 14;
+PROC PRINT data=temp; 
+     BY sex;
+     WHERE age=14;
+RUN;
+
+*Testing to determine if the residuals are normally distributed;
+*The Shapiro-Wilk test, Kolmogorov-Smirnov test,  Cramer-von Mises test, and Anderson-Darling test all have non-significant p-values for both sexes, suggesting that the residuals are not normally distributed;
+PROC UNIVARIATE DATA = CLASS normal plot;
+    VAR age;
+    BY sex;
+RUN;
+
+*Conducting an F statistic for lack of fit;
+*The p-value is 0.3028, suggesting that the regression function is linear;
+PROC REG DATA = CLASS;
+   MODEL weight = age / lackfit; 
+   BY sex;
+RUN; 
+
+*Examining potential transformations;
+*The result agrees with the f-statistic-no transformation needed;
+PROC TRANSREG data = CLASS;
+    MODEL boxcox(weight / convenient lambda = -1 to 3 by 0.1)= qpoint(age);
+RUN;
